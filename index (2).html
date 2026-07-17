@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClearFlow — Banking Clearing Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F1E9;
+    --paper-line:#D9D4C3;
+    --ink:#1B2A4A;
+    --ink-soft:#3C4B6B;
+    --ledger-green:#1F4D3D;
+    --ledger-green-soft:#2E6B54;
+    --brass:#A9812F;
+    --brass-soft:#C9A24D;
+    --red:#9A3324;
+    --red-soft:#C0503E;
+    --card:#FBFAF6;
+    --shadow: 0 1px 0 rgba(27,42,74,0.06), 0 8px 24px -12px rgba(27,42,74,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(27,42,74,0.045) 28px),
+      var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--brass-soft); color:var(--ink);}
+  h1,h2,h3{font-family:'Zilla Slab', serif; margin:0; letter-spacing:-0.01em;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .wrap{max-width:980px; margin:0 auto; padding:0 24px;}
+  button{font-family:inherit; cursor:pointer;}
+  :focus-visible{outline:2px solid var(--brass); outline-offset:2px;}
+
+  /* Top nav / letterhead */
+  header.letterhead{
+    border-bottom:2px solid var(--ink);
+    background:var(--paper);
+    position:sticky; top:0; z-index:20;
+  }
+  .letterhead-inner{
+    max-width:980px; margin:0 auto; padding:16px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand-mark{
+    width:34px; height:34px; border-radius:50%;
+    border:2px solid var(--ink); display:flex; align-items:center; justify-content:center;
+    font-family:'Zilla Slab',serif; font-weight:700; font-size:15px; color:var(--ink);
+    transform:rotate(-6deg);
+  }
+  .brand h1{font-size:22px; font-weight:700;}
+  .brand span.tag{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); display:block; margin-top:1px;}
+  nav.tabs{display:flex; gap:4px;}
+  nav.tabs button{
+    background:transparent; border:none; padding:8px 14px; font-size:13px;
+    letter-spacing:.04em; text-transform:uppercase; color:var(--ink-soft); border-radius:3px;
+    transition:background .15s, color .15s;
+  }
+  nav.tabs button:hover{background:rgba(27,42,74,0.06);}
+  nav.tabs button.active{background:var(--ink); color:var(--paper);}
+
+  main{padding-bottom:80px;}
+  .view{display:none; animation:fadeIn .35s ease;}
+  .view.active{display:block;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  /* HOME */
+  .hero{padding:72px 24px 56px; text-align:center; position:relative;}
+  .hero .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--brass); margin-bottom:18px; display:inline-block;
+  }
+  .hero h2{font-size:56px; line-height:1.02; max-width:720px; margin:0 auto 18px;}
+  .hero p.lede{font-size:17px; color:var(--ink-soft); max-width:520px; margin:0 auto 34px; line-height:1.6;}
+  .cta-row{display:flex; gap:14px; justify-content:center; flex-wrap:wrap;}
+  .btn{
+    border:none; padding:13px 26px; font-size:14px; font-weight:600; border-radius:2px;
+    letter-spacing:.02em; transition:transform .15s, box-shadow .15s;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--ink); color:var(--paper); box-shadow:var(--shadow);}
+  .btn-primary:hover{background:#25355c;}
+  .btn-ghost{background:transparent; color:var(--ink); border:1.5px solid var(--ink);}
+  .btn-ghost:hover{background:rgba(27,42,74,0.06);}
+  .btn-brass{background:var(--brass); color:#fff;}
+  .btn-brass:hover{background:#8f6d26;}
+  .btn-sm{padding:8px 16px; font-size:12.5px;}
+
+  .demo-instrument{
+    max-width:520px; margin:0 auto; background:var(--card); border:1px solid var(--paper-line);
+    border-radius:6px; box-shadow:var(--shadow); padding:22px 26px; text-align:left;
+  }
+  .demo-instrument .row{display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px dashed var(--paper-line); font-size:14px;}
+  .demo-instrument .row:last-child{border-bottom:none;}
+  .demo-instrument .row .label{color:var(--ink-soft);}
+  .demo-instrument .amt{font-family:'IBM Plex Mono'; font-weight:600; font-size:16px;}
+
+  .explain-band{background:var(--ink); color:var(--paper); padding:52px 24px; margin-top:20px;}
+  .explain-band .wrap{display:grid; grid-template-columns:1fr 1.3fr; gap:40px; align-items:center;}
+  .explain-band h3{font-size:26px; margin-bottom:12px;}
+  .explain-band p{color:#C7CEDD; line-height:1.65; font-size:15px;}
+  .flow-mini{display:flex; align-items:center; gap:0; flex-wrap:wrap;}
+  .flow-mini .node{
+    font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    border:1px solid #4A5A80; padding:8px 12px; border-radius:20px; color:#C7CEDD;
+  }
+  .flow-mini .arrow{color:var(--brass-soft); padding:0 8px; font-size:14px;}
+
+  @media (max-width:720px){
+    .explain-band .wrap{grid-template-columns:1fr;}
+    .hero h2{font-size:38px;}
+  }
+
+  /* DASHBOARD */
+  .dash-head{padding:40px 24px 8px;}
+  .dash-head .eyebrow{font-family:'IBM Plex Mono'; font-size:12px; color:var(--brass); letter-spacing:.14em; text-transform:uppercase;}
+  .dash-head h2{font-size:32px; margin-top:6px;}
+  .stat-grid{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--ink);
+    margin:28px 24px 8px; border:1px solid var(--ink); border-radius:4px; overflow:hidden;
+  }
+  .stat-cell{background:var(--card); padding:20px 16px; text-align:center;}
+  .stat-cell .n{font-family:'IBM Plex Mono'; font-size:30px; font-weight:600;}
+  .stat-cell .l{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-soft); margin-top:6px;}
+  .stat-cell.pending .n{color:var(--brass);}
+  .stat-cell.verified .n{color:var(--ink-soft);}
+  .stat-cell.settlement .n{color:var(--ledger-green);}
+  .stat-cell.completed .n{color:var(--ledger-green);}
+  .stat-cell.rejected .n{color:var(--red);}
+  @media (max-width:720px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+
+  .section-title{
+    display:flex; align-items:center; justify-content:space-between; margin:36px 24px 16px;
+  }
+  .section-title h3{font-size:18px; text-transform:uppercase; letter-spacing:.06em;}
+
+  .tx-list{display:flex; flex-direction:column; gap:14px; padding:0 24px;}
+  .tx-card{
+    background:var(--card); border:1px solid var(--paper-line); border-radius:6px; box-shadow:var(--shadow);
+    padding:18px 22px;
+  }
+  .tx-card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;}
+  .tx-id{font-family:'IBM Plex Mono'; font-size:13px; color:var(--ink-soft); letter-spacing:.03em;}
+  .tx-banks{display:flex; align-items:center; gap:10px; font-weight:600; font-size:16px; margin-top:4px;}
+  .tx-banks .arrow{color:var(--brass); font-size:14px;}
+  .tx-amt{font-family:'IBM Plex Mono'; font-size:20px; font-weight:600;}
+  .tx-type{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft); margin-top:2px;}
+
+  .stamp{
+    display:inline-flex; align-items:center; justify-content:center;
+    border:2px solid currentColor; border-radius:4px; padding:5px 12px;
+    font-family:'IBM Plex Mono'; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+    transform:rotate(-4deg); position:relative;
+  }
+  .stamp::after{content:''; position:absolute; inset:2px; border:1px solid currentColor; border-radius:2px; opacity:.5;}
+  .stamp.pending{color:var(--brass);}
+  .stamp.verification, .stamp.clearinghouse{color:var(--ink-soft);}
+  .stamp.settlement{color:var(--ledger-green-soft);}
+  .stamp.completed{color:var(--ledger-green);}
+  .stamp.rejected{color:var(--red); transform:rotate(4deg);}
+
+  .dir-badge{
+    display:inline-flex; align-items:center; gap:5px; font-family:'IBM Plex Mono'; font-size:10.5px;
+    text-transform:uppercase; letter-spacing:.07em; padding:3px 9px; border-radius:20px; margin-top:4px;
+  }
+  .dir-badge.inward{background:#EAF0EC; color:var(--ledger-green);}
+  .dir-badge.outward{background:#F1E9D8; color:var(--brass);}
+  .dir-badge .arrow{font-size:11px;}
+
+  .info-btn{
+    display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%;
+    border:1.2px solid var(--ink-soft); color:var(--ink-soft); font-size:10px; font-family:'IBM Plex Mono';
+    cursor:pointer; margin-left:6px; background:transparent; vertical-align:middle;
+  }
+  .info-btn:hover{border-color:var(--ink); color:var(--ink);}
+
+  .return-note{
+    margin-top:12px; padding:12px 14px; background:#FBF1EC; border:1px dashed var(--red-soft); border-radius:4px;
+    font-size:12.5px; color:var(--red-soft); line-height:1.55;
+  }
+  .return-note strong{color:var(--red);}
+  .return-note .path{font-family:'IBM Plex Mono'; font-size:11.5px; margin-top:6px; display:block; color:var(--ink-soft);}
+
+  .clearing-explainer{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:26px;}
+  @media (max-width:720px){.clearing-explainer{grid-template-columns:1fr;}}
+  .clearing-card{background:rgba(255,255,255,0.05); border:1px solid #3C4B6B; border-radius:6px; padding:18px 20px;}
+  .clearing-card h4{font-family:'IBM Plex Mono'; font-size:12px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;}
+  .clearing-card.inward h4{color:#7FCBA4;}
+  .clearing-card.outward h4{color:var(--brass-soft);}
+  .clearing-card p{font-size:13.5px; color:#C7CEDD; line-height:1.6; margin:0;}
+  .clearing-card .path-line{font-family:'IBM Plex Mono'; font-size:11px; color:#9FB0CC; margin-top:10px;}
+
+  .report-section{padding:0 24px 8px;}
+  .report-section-title{margin:34px 0 6px;}
+  .report-section-title h3{font-size:16px; text-transform:uppercase; letter-spacing:.06em;}
+  .report-section-title p{font-size:12.5px; color:var(--ink-soft); margin-top:4px; max-width:560px;}
+  .breakdown-row{display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px dashed var(--paper-line);}
+  .breakdown-row:last-child{border-bottom:none;}
+  .breakdown-row .b-label{width:150px; font-size:13px; flex-shrink:0;}
+  .breakdown-row .b-track{flex:1; height:8px; background:#EFEBDE; border-radius:4px; overflow:hidden;}
+  .breakdown-row .b-fill{height:100%; border-radius:4px;}
+  .breakdown-row .b-val{width:90px; text-align:right; font-family:'IBM Plex Mono'; font-size:12.5px; flex-shrink:0;}
+  .rej-table{width:100%; border-collapse:collapse; font-size:13px; margin-top:10px;}
+  .rej-table th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); padding:6px 8px; border-bottom:1.5px solid var(--ink);}
+  .rej-table td{padding:9px 8px; border-bottom:1px dashed var(--paper-line); vertical-align:top;}
+  .rej-table .rt-id{font-family:'IBM Plex Mono'; font-size:12px;}
+  .rej-table .rt-reason{color:var(--red-soft); font-weight:600;}
+  .rej-table .rt-returned{font-family:'IBM Plex Mono'; font-size:11.5px; color:var(--ink-soft);}
+  .split-bar{display:flex; height:34px; border-radius:4px; overflow:hidden; margin-top:14px;}
+  .split-bar .seg{display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono'; font-size:11.5px; color:#fff; letter-spacing:.03em;}
+
+  /* Journey timeline */
+  .journey{margin-top:20px; padding-top:16px; border-top:1px dashed var(--paper-line);}
+  .journey-track{display:flex; align-items:center; position:relative;}
+  .journey-seg{flex:1; height:2px; background:var(--paper-line); position:relative; overflow:hidden;}
+  .journey-seg .fill{position:absolute; inset:0; background:var(--ledger-green-soft); width:0%; transition:width .6s ease;}
+  .journey-node{
+    width:26px; height:26px; border-radius:50%; border:2px solid var(--paper-line); background:var(--card);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:12px; transition:all .3s ease; position:relative; z-index:2;
+  }
+  .journey-node:hover{transform:scale(1.12);}
+  .journey-node.done{border-color:var(--ledger-green-soft); background:var(--ledger-green-soft); color:#fff;}
+  .journey-node.current{border-color:var(--brass); background:var(--brass); color:#fff; animation:pulse 1.6s infinite;}
+  .journey-node.rejected-node{border-color:var(--red); background:var(--red); color:#fff;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(169,129,47,.35);} 50%{box-shadow:0 0 0 7px rgba(169,129,47,0);}}
+  .journey-labels{display:flex; margin-top:8px;}
+  .journey-labels span{flex:1; text-align:center; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-family:'IBM Plex Mono';}
+  .journey-labels span:first-child, .journey-labels span:last-child{flex:0 0 auto; width:26px;}
+
+  .tx-actions{display:flex; justify-content:space-between; align-items:center; margin-top:16px;}
+  .reject-note{font-size:12.5px; color:var(--red); font-family:'IBM Plex Mono';}
+
+  /* Create form */
+  .form-card{
+    max-width:520px; margin:32px auto; background:var(--card); border:1px solid var(--paper-line);
+    border-radius:6px; box-shadow:var(--shadow); padding:32px;
+  }
+  .form-card h3{font-size:22px; margin-bottom:4px;}
+  .form-card .sub{color:var(--ink-soft); font-size:13px; margin-bottom:24px;}
+  .field{margin-bottom:18px;}
+  .field label{display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin-bottom:6px;}
+  .field input, .field select{
+    width:100%; padding:11px 12px; border:1.5px solid var(--paper-line); border-radius:3px;
+    font-family:'IBM Plex Sans'; font-size:14px; background:#fff; color:var(--ink);
+  }
+  .field input:focus, .field select:focus{border-color:var(--ink); outline:none;}
+  .radio-row{display:flex; gap:10px;}
+  .radio-opt{
+    flex:1; border:1.5px solid var(--paper-line); border-radius:3px; padding:10px; text-align:center;
+    font-size:13px; cursor:pointer; transition:all .15s;
+  }
+  .radio-opt input{display:none;}
+  .radio-opt.selected{border-color:var(--ink); background:var(--ink); color:var(--paper);}
+  .genid{font-family:'IBM Plex Mono'; color:var(--ink-soft); background:#EFEBDE; padding:11px 12px; border-radius:3px; font-size:14px;}
+
+  /* Popup modal */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(27,42,74,0.45); display:none; align-items:center; justify-content:center;
+    z-index:100; padding:20px; backdrop-filter:blur(1px);
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    background:var(--card); border-radius:6px; max-width:420px; width:100%; padding:28px 28px 24px;
+    box-shadow:0 20px 60px rgba(27,42,74,0.35); animation:pop .2s ease;
+    border-top:4px solid var(--ink);
+  }
+  @keyframes pop{from{transform:scale(.96) translateY(6px); opacity:0;} to{transform:scale(1) translateY(0); opacity:1;}}
+  .modal h3{font-size:20px; margin-bottom:2px;}
+  .modal .modal-sub{font-size:12px; color:var(--brass); text-transform:uppercase; letter-spacing:.08em; margin-bottom:16px;}
+  .modal ul{margin:0 0 16px; padding-left:0; list-style:none;}
+  .modal ul li{padding:6px 0; font-size:14px; border-bottom:1px dashed var(--paper-line); display:flex; gap:8px;}
+  .modal ul li:last-child{border-bottom:none;}
+  .modal .err-list li{color:var(--red-soft);}
+  .modal-close-row{text-align:right; margin-top:6px;}
+
+  /* Report */
+  .report-grid{display:grid; grid-template-columns:1.1fr 1fr; gap:24px; padding:0 24px 40px; align-items:start;}
+  @media (max-width:760px){.report-grid{grid-template-columns:1fr;}}
+  .report-card{background:var(--card); border:1px solid var(--paper-line); border-radius:6px; box-shadow:var(--shadow); padding:26px;}
+  .report-stats{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:18px;}
+  .report-stat{border-left:3px solid var(--brass); padding-left:12px;}
+  .report-stat .n{font-family:'IBM Plex Mono'; font-size:24px; font-weight:600;}
+  .report-stat .l{font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em;}
+  .legend{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+  .legend-row{display:flex; align-items:center; gap:10px; font-size:13.5px;}
+  .legend-swatch{width:12px; height:12px; border-radius:2px; flex-shrink:0;}
+
+  /* Search */
+  .search-wrap{max-width:520px; margin:32px auto; padding:0 24px;}
+  .search-box{display:flex; gap:10px;}
+  .search-box input{flex:1; padding:12px 14px; border:1.5px solid var(--ink); border-radius:3px; font-family:'IBM Plex Mono'; font-size:14px;}
+  .search-result{margin-top:22px;}
+  .empty-state{
+    text-align:center; padding:60px 24px; color:var(--ink-soft);
+  }
+  .empty-state .glyph{font-size:32px; margin-bottom:10px; opacity:.5;}
+
+  footer{border-top:1px solid var(--paper-line); padding:24px; text-align:center; font-size:12px; color:var(--ink-soft); font-family:'IBM Plex Mono';}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+  }
+</style>
+</head>
+<body>
+
+<header class="letterhead">
+  <div class="letterhead-inner">
+    <div class="brand">
+      <div class="brand-mark">CF</div>
+      <div>
+        <h1>ClearFlow</h1>
+        <span class="tag">Clearing Simulator</span>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button data-view="home" class="active">Home</button>
+      <button data-view="dashboard">Dashboard</button>
+      <button data-view="report">Report</button>
+      <button data-view="search">Search</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- HOME -->
+  <section class="view active" id="view-home">
+    <div class="hero">
+      <span class="eyebrow">Interactive · No login · No backend</span>
+      <h2>How does a cheque<br>actually get cleared?</h2>
+      <p class="lede">Create a transaction, watch it move bank to bank through verification, the clearing house, and settlement — and see exactly what can go wrong at each step.</p>
+      <div class="cta-row">
+        <button class="btn btn-primary" data-goto="dashboard">Start Simulation</button>
+        <button class="btn btn-ghost" data-scroll="whatis">What is Clearing?</button>
+      </div>
+    </div>
+
+    <div class="demo-instrument">
+      <div class="row"><span class="label mono">CLR0001</span><span class="stamp pending">Pending</span></div>
+      <div class="row"><span class="label">From</span><span>ABC Bank</span></div>
+      <div class="row"><span class="label">To</span><span>XYZ Bank</span></div>
+      <div class="row"><span class="label">Amount</span><span class="amt">₹25,000</span></div>
+    </div>
+
+    <div class="explain-band" id="whatis">
+      <div class="wrap">
+        <div>
+          <h3>What is Clearing?</h3>
+          <p>Clearing is the exchange of payment instructions between banks <em>before</em> money actually settles. Your bank and the receiving bank have to verify, confirm, and reconcile the instruction — cheque, NEFT, or RTGS — before funds move for real.</p>
+          <p style="margin-top:12px;">This simulator walks one instrument through that entire lifecycle, stage by stage.</p>
+        </div>
+        <div class="flow-mini">
+          <span class="node">Received</span><span class="arrow">→</span>
+          <span class="node">Verification</span><span class="arrow">→</span>
+          <span class="node">Clearing House</span><span class="arrow">→</span>
+          <span class="node">Settlement</span><span class="arrow">→</span>
+          <span class="node">Completed</span>
+        </div>
+      </div>
+      <div class="wrap">
+        <div class="clearing-explainer">
+          <div class="clearing-card outward">
+            <h4>↗ Outward Clearing</h4>
+            <p>A customer deposits a cheque drawn on <em>another</em> bank. Your bank is the <strong>collecting bank</strong> — it sends the instrument outward, through the clearing house, to the bank it's drawn on.</p>
+            <div class="path-line">Your Bank (collecting) → Clearing House → Drawee Bank</div>
+          </div>
+          <div class="clearing-card inward">
+            <h4>↙ Inward Clearing</h4>
+            <p>Another bank presents a cheque drawn on <em>your</em> bank. Your bank is the <strong>paying bank</strong> — it must verify the account and signature, then honour or reject it.</p>
+            <div class="path-line">Presenting Bank → Clearing House → Your Bank (paying)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section class="view" id="view-dashboard">
+    <div class="dash-head">
+      <span class="eyebrow">Ledger — Today</span>
+      <h2>Today's Transactions</h2>
+    </div>
+
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <div class="section-title">
+      <h3>Live Transactions</h3>
+      <button class="btn btn-brass btn-sm" data-goto="create">+ Create New Transaction</button>
+    </div>
+    <div class="tx-list" id="tx-list"></div>
+  </section>
+
+  <!-- CREATE -->
+  <section class="view" id="view-create">
+    <div class="form-card">
+      <h3>Create New Transaction</h3>
+      <div class="sub">Instruct a payment between two banks. It enters the queue as <strong>Pending</strong>.</div>
+
+      <div class="field">
+        <label>Transaction ID</label>
+        <div class="genid" id="gen-id">CLR0001</div>
+      </div>
+      <div class="field">
+        <label for="fromBank">From Bank</label>
+        <select id="fromBank">
+          <option>ABC Bank</option><option>Horizon Trust</option><option>Meridian National</option><option>Coastal Union Bank</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="toBank">To Bank</label>
+        <select id="toBank">
+          <option>XYZ Bank</option><option>Horizon Trust</option><option>Meridian National</option><option>Coastal Union Bank</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="amount">Amount (₹)</label>
+        <input type="number" id="amount" placeholder="25000" min="1">
+      </div>
+      <div class="field">
+        <label>Transaction Type</label>
+        <div class="radio-row" id="type-row">
+          <label class="radio-opt selected"><input type="radio" name="type" value="Cheque" checked>Cheque</label>
+          <label class="radio-opt"><input type="radio" name="type" value="NEFT">NEFT</label>
+          <label class="radio-opt"><input type="radio" name="type" value="RTGS">RTGS</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Clearing Direction <span class="info-btn" id="dir-info-btn">i</span></label>
+        <div class="radio-row" id="dir-row">
+          <label class="radio-opt selected"><input type="radio" name="direction" value="Outward" checked>Outward</label>
+          <label class="radio-opt"><input type="radio" name="direction" value="Inward">Inward</label>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="submit-tx" style="width:100%; margin-top:6px;">Submit</button>
+    </div>
+  </section>
+
+  <!-- REPORT -->
+  <section class="view" id="view-report">
+    <div class="dash-head">
+      <span class="eyebrow">End of Day</span>
+      <h2>Today's Report</h2>
+    </div>
+
+    <div class="report-grid">
+      <div class="report-card">
+        <h3 style="font-size:16px; text-transform:uppercase; letter-spacing:.06em;">Summary</h3>
+        <div class="report-stats" id="report-stats"></div>
+      </div>
+      <div class="report-card" style="text-align:center;">
+        <h3 style="font-size:16px; text-transform:uppercase; letter-spacing:.06em; text-align:left;">Status Split</h3>
+        <div id="pie-holder" style="display:flex; justify-content:center; margin-top:10px;"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-section-title">
+        <h3>Inward vs Outward Clearing</h3>
+        <p>Outward = your bank collecting instruments for customers, drawn on other banks. Inward = other banks presenting instruments drawn on your bank, which you must pay or reject.</p>
+      </div>
+      <div class="report-card">
+        <div class="split-bar" id="dir-split-bar"></div>
+        <div class="report-stats" id="dir-split-stats" style="margin-top:20px;"></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-section-title">
+        <h3>By Transaction Type</h3>
+        <p>Volume across Cheque, NEFT and RTGS instruments processed today.</p>
+      </div>
+      <div class="report-card" id="type-breakdown"></div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-section-title">
+        <h3>Rejections — Reason &amp; Return Path</h3>
+        <p>Every rejected instrument is sent back via Return Clearing to the bank that originally collected it, reversing the depositor's provisional credit.</p>
+      </div>
+      <div class="report-card" id="rejection-breakdown"></div>
+    </div>
+  </section>
+
+  <!-- SEARCH -->
+  <section class="view" id="view-search">
+    <div class="search-wrap">
+      <div class="dash-head" style="padding:0 0 20px;">
+        <span class="eyebrow">Lookup</span>
+        <h2 style="font-size:26px;">Search a Transaction</h2>
+      </div>
+      <div class="search-box">
+        <input type="text" id="search-input" placeholder="Enter Transaction ID, e.g. CLR0001">
+        <button class="btn btn-primary btn-sm" id="search-btn">Search</button>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>CLEARFLOW · SIMULATED LEDGER · NO REAL FUNDS MOVE</footer>
+
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+(function(){
+  const STAGES = ["Received","Verification","Clearing House","Settlement","Completed"];
+  const STAGE_CLASS = ["received","verification","clearinghouse","settlement","completed"];
+  const STAGE_ICONS = ["✉","✔","⚖","₹","●"];
+
+  const STAGE_INFO = {
+    "Received": {
+      checks:["Instrument logged","Reference number assigned","Sender bank identified"],
+      errors:["Duplicate transaction ID","Malformed instrument data"]
+    },
+    "Verification": {
+      checks:["Account exists","Signature match","Cheque date valid","Balance check"],
+      errors:["Signature mismatch","Stale cheque","Frozen account"]
+    },
+    "Clearing House": {
+      checks:["Inter-bank instruction exchanged","Amount reconciled","Regulatory checks passed"],
+      errors:["Mismatched amount","Clearing house timeout"]
+    },
+    "Settlement": {
+      checks:["Funds earmarked","Receiving bank confirms credit","Nostro/vostro accounts updated"],
+      errors:["Insufficient funds","Settlement bank system error"]
+    },
+    "Completed": {
+      checks:["Funds credited to beneficiary","Confirmation sent to both banks","Ledger closed"],
+      errors:[]
+    }
+  };
+
+  const REJECT_REASONS = ["Insufficient Funds","Signature Mismatch","Frozen Account","Stale Cheque"];
+
+  const REASON_INFO = {
+    "Insufficient Funds": "The drawee account doesn't have enough balance to cover the amount. Most common reason for a bounced cheque.",
+    "Signature Mismatch": "The signature on the instrument doesn't match the specimen signature the bank holds on file.",
+    "Frozen Account": "The account is legally or administratively frozen (e.g. court order, KYC lapse) and cannot be debited.",
+    "Stale Cheque": "The cheque is presented after its validity window (usually 3 months from the date written) and is no longer payable."
+  };
+
+  const DIR_INFO = {
+    Outward: "Your bank collected this instrument from its own customer and sent it out to the drawee bank for payment.",
+    Inward: "Another bank presented this instrument to your bank, which must verify and pay it out of a customer's account."
+  };
+
+  let txCounter = 0;
+  let transactions = [];
+
+  function pad(n){ return String(n).padStart(4,'0'); }
+  function nextId(){ return "CLR" + pad(txCounter+1); }
+  function fmtAmt(n){ return "₹" + Number(n).toLocaleString('en-IN'); }
+  function dirBadgeHtml(t){
+    const arrow = t.direction==='Inward' ? '↙' : '↗';
+    return `<span class="dir-badge ${t.direction.toLowerCase()}"><span class="arrow">${arrow}</span>${t.direction} Clearing</span>`;
+  }
+  function returnToBank(t){
+    // Rejected instruments are sent back via Return Clearing to whichever bank
+    // originally collected/presented them, so the depositor's provisional credit can be reversed.
+    return t.direction === 'Outward' ? t.fromBank : t.fromBank;
+  }
+  function returnNoteHtml(t){
+    if(!t.rejected) return '';
+    const back = returnToBank(t);
+    return `
+      <div class="return-note">
+        <strong>Rejected — ${t.reason}.</strong> ${REASON_INFO[t.reason] || ''}
+        <span class="path">↩ Sent back via Return Clearing to ${back}, where the customer's provisional credit is reversed and they're notified with the reason.</span>
+      </div>`;
+  }
+
+  function randStageMinutes(){ return 2 + Math.floor(Math.random()*5); } // 2-6 min per stage transition
+  function elapsedFor(steps){ let m=0; for(let i=0;i<steps;i++) m += randStageMinutes(); return m; }
+
+  function seedData(){
+    const seeds = [
+      ["ABC Bank","XYZ Bank",25000,"Cheque","Outward",4],
+      ["Horizon Trust","Meridian National",118000,"RTGS","Inward",2],
+      ["Coastal Union Bank","ABC Bank",7600,"NEFT","Outward",1],
+      ["Meridian National","Horizon Trust",52300,"Cheque","Inward",3],
+    ];
+    seeds.forEach(s=>{
+      const tx = makeTx(s[0],s[1],s[2],s[3],s[4]);
+      tx.currentStep = s[5];
+      tx.simMinutes = elapsedFor(s[5]);
+      transactions.push(tx);
+    });
+    // rejected examples, one per direction, so the return path is visible for both
+    const r1 = makeTx("XYZ Bank","Coastal Union Bank",9800,"Cheque","Outward");
+    r1.currentStep = 1; r1.rejected = true; r1.reason = "Signature Mismatch"; r1.simMinutes = elapsedFor(1);
+    transactions.push(r1);
+    const r2 = makeTx("Meridian National","ABC Bank",14250,"Cheque","Inward");
+    r2.currentStep = 1; r2.rejected = true; r2.reason = "Insufficient Funds"; r2.simMinutes = elapsedFor(1);
+    transactions.push(r2);
+    // some completed for report richness
+    for(let i=0;i<15;i++){
+      const c = makeTx("ABC Bank","XYZ Bank", 1000+i*870, i%2? "NEFT":"Cheque", i%3===0?"Inward":"Outward");
+      c.currentStep = 4;
+      c.simMinutes = elapsedFor(4);
+      transactions.push(c);
+    }
+  }
+
+  function makeTx(from,to,amount,type,direction){
+    txCounter++;
+    return {
+      id: "CLR"+pad(txCounter),
+      fromBank: from, toBank: to, amount: amount, type: type,
+      direction: direction || 'Outward',
+      currentStep: 0, rejected:false, reason:null,
+      simMinutes: 0,
+      createdAt: Date.now()
+    };
+  }
+
+  // ---------- NAV ----------
+  const views = document.querySelectorAll('.view');
+  const tabBtns = document.querySelectorAll('nav.tabs button');
+  function goto(name){
+    views.forEach(v=>v.classList.toggle('active', v.id === 'view-'+name));
+    tabBtns.forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+    if(name==='dashboard') renderDashboard();
+    if(name==='create') document.getElementById('gen-id').textContent = nextId();
+    if(name==='report') renderReport();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  tabBtns.forEach(b=> b.addEventListener('click', ()=> goto(b.dataset.view)));
+  document.querySelectorAll('[data-goto]').forEach(b=>{
+    b.addEventListener('click', ()=> goto(b.dataset.goto));
+  });
+  document.querySelectorAll('[data-scroll]').forEach(b=>{
+    b.addEventListener('click', ()=> document.getElementById(b.dataset.scroll).scrollIntoView({behavior:'smooth'}));
+  });
+
+  // ---------- DASHBOARD ----------
+  function counts(){
+    const c = {pending:0, verified:0, settlement:0, completed:0, rejected:0};
+    transactions.forEach(t=>{
+      if(t.rejected){ c.rejected++; return; }
+      if(t.currentStep===0) c.pending++;
+      else if(t.currentStep===1 || t.currentStep===2) c.verified++;
+      else if(t.currentStep===3) c.settlement++;
+      else if(t.currentStep===4) c.completed++;
+    });
+    return c;
+  }
+
+  function renderDashboard(){
+    const c = counts();
+    document.getElementById('stat-grid').innerHTML = `
+      <div class="stat-cell pending"><div class="n mono">${c.pending}</div><div class="l">Pending</div></div>
+      <div class="stat-cell verified"><div class="n mono">${c.verified}</div><div class="l">Verified</div></div>
+      <div class="stat-cell settlement"><div class="n mono">${c.settlement}</div><div class="l">Settlement</div></div>
+      <div class="stat-cell completed"><div class="n mono">${c.completed}</div><div class="l">Completed</div></div>
+      <div class="stat-cell rejected"><div class="n mono">${c.rejected}</div><div class="l">Rejected</div></div>
+    `;
+    const list = document.getElementById('tx-list');
+    const sorted = [...transactions].sort((a,b)=> b.createdAt - a.createdAt);
+    list.innerHTML = sorted.map(txCardHtml).join('');
+    // wire up
+    sorted.forEach(t=>{
+      const card = document.getElementById('card-'+t.id);
+      if(!card) return;
+      card.querySelectorAll('.journey-node').forEach(node=>{
+        node.addEventListener('click', ()=> showStageInfo(STAGES[+node.dataset.idx]));
+      });
+      const nextBtn = card.querySelector('.next-stage-btn');
+      if(nextBtn) nextBtn.addEventListener('click', ()=> advance(t.id));
+    });
+  }
+
+  function statusLabel(t){
+    if(t.rejected) return "Rejected";
+    return STAGES[t.currentStep];
+  }
+  function statusClass(t){
+    if(t.rejected) return "rejected";
+    return STAGE_CLASS[t.currentStep];
+  }
+
+  function txCardHtml(t){
+    const step = t.currentStep;
+    let segFill = [];
+    for(let i=0;i<4;i++){
+      segFill.push(i < step ? 100 : 0);
+    }
+    const nodes = STAGES.map((s,i)=>{
+      let cls = '';
+      if(t.rejected && i===step) cls='rejected-node';
+      else if(i < step) cls='done';
+      else if(i === step) cls='current';
+      return `<div class="journey-node ${cls}" data-idx="${i}" title="${s}">${i<step||( !t.rejected && i===step && step===4) ? '✔' : (t.rejected && i===step ? '✕' : STAGE_ICONS[i])}</div>`;
+    }).join('<div class="journey-seg"><div class="fill" style="width:0%"></div></div>');
+
+    const canAdvance = !t.rejected && t.currentStep < 4;
+    return `
+    <div class="tx-card" id="card-${t.id}">
+      <div class="tx-card-top">
+        <div>
+          <div class="tx-id">${t.id}</div>
+          <div class="tx-banks"><span>${t.fromBank}</span><span class="arrow">→</span><span>${t.toBank}</span></div>
+          <div class="tx-type">${t.type}</div>
+          ${dirBadgeHtml(t)}
+        </div>
+        <div style="text-align:right;">
+          <div class="tx-amt">${fmtAmt(t.amount)}</div>
+          <div class="stamp ${statusClass(t)}" style="margin-top:8px;">${statusLabel(t)}</div>
+        </div>
+      </div>
+      <div class="journey">
+        <div class="journey-track">${nodes}</div>
+        <div class="journey-labels">${STAGES.map(s=>`<span>${s}</span>`).join('')}</div>
+      </div>
+      ${returnNoteHtml(t)}
+      <div class="tx-actions">
+        <span class="reject-note">&nbsp;</span>
+        ${canAdvance ? `<button class="btn btn-ghost btn-sm next-stage-btn">Next Stage</button>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function advance(id){
+    const t = transactions.find(x=>x.id===id);
+    if(!t || t.rejected || t.currentStep>=4) return;
+    const roll = Math.random();
+    t.simMinutes += randStageMinutes();
+    if(roll < 0.10 && t.currentStep < 4){
+      t.rejected = true;
+      t.reason = REJECT_REASONS[Math.floor(Math.random()*REJECT_REASONS.length)];
+    } else {
+      t.currentStep++;
+    }
+    renderDashboard();
+  }
+
+  // ---------- STAGE POPUP ----------
+  function showStageInfo(stageName){
+    const info = STAGE_INFO[stageName];
+    const backdrop = document.getElementById('modal-backdrop');
+    const modal = document.getElementById('modal-content');
+    modal.innerHTML = `
+      <h3>${stageName}</h3>
+      <div class="modal-sub">What happens?</div>
+      <ul>${info.checks.map(c=>`<li>✔ ${c}</li>`).join('')}</ul>
+      ${info.errors.length ? `<div class="modal-sub" style="color:var(--red-soft);">Possible Errors</div><ul class="err-list">${info.errors.map(e=>`<li>• ${e}</li>`).join('')}</ul>` : ''}
+      <div class="modal-close-row"><button class="btn btn-ghost btn-sm" id="modal-close">Close</button></div>
+    `;
+    backdrop.classList.add('open');
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+  }
+  function closeModal(){ document.getElementById('modal-backdrop').classList.remove('open'); }
+  document.getElementById('modal-backdrop').addEventListener('click', (e)=>{
+    if(e.target.id==='modal-backdrop') closeModal();
+  });
+
+  // ---------- CREATE ----------
+  document.querySelectorAll('#type-row .radio-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      document.querySelectorAll('#type-row .radio-opt').forEach(o=>o.classList.remove('selected'));
+      opt.classList.add('selected');
+      opt.querySelector('input').checked = true;
+    });
+  });
+  document.querySelectorAll('#dir-row .radio-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      document.querySelectorAll('#dir-row .radio-opt').forEach(o=>o.classList.remove('selected'));
+      opt.classList.add('selected');
+      opt.querySelector('input').checked = true;
+    });
+  });
+  document.getElementById('dir-info-btn').addEventListener('click', ()=>{
+    const backdrop = document.getElementById('modal-backdrop');
+    const modal = document.getElementById('modal-content');
+    modal.innerHTML = `
+      <h3>Inward vs Outward</h3>
+      <div class="modal-sub">Which side of the transaction is your bank on?</div>
+      <ul>
+        <li><strong>Outward:</strong> ${DIR_INFO.Outward}</li>
+        <li><strong>Inward:</strong> ${DIR_INFO.Inward}</li>
+      </ul>
+      <div class="modal-close-row"><button class="btn btn-ghost btn-sm" id="modal-close">Close</button></div>
+    `;
+    backdrop.classList.add('open');
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+  });
+  document.getElementById('submit-tx').addEventListener('click', ()=>{
+    const from = document.getElementById('fromBank').value;
+    const to = document.getElementById('toBank').value;
+    const amount = parseFloat(document.getElementById('amount').value);
+    const type = document.querySelector('#type-row input:checked').value;
+    const direction = document.querySelector('#dir-row input:checked').value;
+    if(!amount || amount<=0){
+      document.getElementById('amount').style.borderColor = 'var(--red)';
+      return;
+    }
+    const tx = makeTx(from, to, amount, type, direction);
+    transactions.push(tx);
+    document.getElementById('amount').value = '';
+    document.getElementById('amount').style.borderColor = '';
+    goto('dashboard');
+  });
+
+  // ---------- REPORT ----------
+  function renderReport(){
+    const c = counts();
+    const total = transactions.length;
+    const totalValue = transactions.reduce((s,t)=> s + t.amount, 0);
+    const completedTx = transactions.filter(t=> t.currentStep===4 && !t.rejected);
+    const avgMinutes = completedTx.length
+      ? Math.round(completedTx.reduce((s,t)=> s + t.simMinutes, 0) / completedTx.length)
+      : 0;
+    document.getElementById('report-stats').innerHTML = `
+      <div class="report-stat"><div class="n mono">${total}</div><div class="l">Transactions</div></div>
+      <div class="report-stat" style="border-color:var(--ledger-green);"><div class="n mono">${c.completed}</div><div class="l">Completed</div></div>
+      <div class="report-stat" style="border-color:var(--red);"><div class="n mono">${c.rejected}</div><div class="l">Rejected</div></div>
+      <div class="report-stat"><div class="n mono">${completedTx.length? avgMinutes+' mins' : '—'}</div><div class="l">Avg Clearing Time</div></div>
+      <div class="report-stat" style="grid-column:1/-1;"><div class="n mono">${fmtAmt(totalValue)}</div><div class="l">Settlement Value</div></div>
+    `;
+    const inProgress = total - c.completed - c.rejected;
+    const slices = [
+      {label:'Completed', val:c.completed, color:'var(--ledger-green)'},
+      {label:'Rejected', val:c.rejected, color:'var(--red)'},
+      {label:'Pending / In Progress', val:inProgress, color:'var(--brass)'}
+    ];
+    document.getElementById('pie-holder').innerHTML = pieSvg(slices, total);
+    document.getElementById('legend').innerHTML = slices.map(s=>`
+      <div class="legend-row"><span class="legend-swatch" style="background:${s.color}"></span>${s.label} — ${s.val}</div>
+    `).join('');
+
+    // Inward vs Outward
+    const outward = transactions.filter(t=>t.direction==='Outward');
+    const inward = transactions.filter(t=>t.direction==='Inward');
+    const outVal = outward.reduce((s,t)=>s+t.amount,0);
+    const inVal = inward.reduce((s,t)=>s+t.amount,0);
+    const outPct = total? Math.round(outward.length/total*100) : 0;
+    const inPct = 100-outPct;
+    document.getElementById('dir-split-bar').innerHTML = total ? `
+      <div class="seg" style="width:${outPct}%; background:var(--brass);">${outPct? outPct+'% Outward':''}</div>
+      <div class="seg" style="width:${inPct}%; background:var(--ledger-green);">${inPct? inPct+'% Inward':''}</div>
+    ` : '';
+    document.getElementById('dir-split-stats').innerHTML = `
+      <div class="report-stat" style="border-color:var(--brass);"><div class="n mono">${outward.length}</div><div class="l">Outward · ${fmtAmt(outVal)}</div></div>
+      <div class="report-stat" style="border-color:var(--ledger-green);"><div class="n mono">${inward.length}</div><div class="l">Inward · ${fmtAmt(inVal)}</div></div>
+    `;
+
+    // By transaction type
+    const types = ['Cheque','NEFT','RTGS'];
+    const typeColors = {Cheque:'var(--ink)', NEFT:'var(--brass)', RTGS:'var(--ledger-green-soft)'};
+    const maxTypeCount = Math.max(1, ...types.map(ty=> transactions.filter(t=>t.type===ty).length));
+    document.getElementById('type-breakdown').innerHTML = types.map(ty=>{
+      const list = transactions.filter(t=>t.type===ty);
+      const val = list.reduce((s,t)=>s+t.amount,0);
+      const pct = Math.round(list.length/maxTypeCount*100);
+      return `
+        <div class="breakdown-row">
+          <div class="b-label">${ty}</div>
+          <div class="b-track"><div class="b-fill" style="width:${pct}%; background:${typeColors[ty]};"></div></div>
+          <div class="b-val">${list.length} · ${fmtAmt(val)}</div>
+        </div>`;
+    }).join('');
+
+    // Rejections table
+    const rejected = transactions.filter(t=>t.rejected);
+    const rbHolder = document.getElementById('rejection-breakdown');
+    if(rejected.length===0){
+      rbHolder.innerHTML = `<div class="empty-state" style="padding:24px;"><div class="glyph">✓</div>No rejections yet today.</div>`;
+    } else {
+      const reasonCounts = {};
+      rejected.forEach(t=> reasonCounts[t.reason] = (reasonCounts[t.reason]||0)+1);
+      const reasonRows = Object.keys(reasonCounts).map(r=>`
+        <div class="breakdown-row">
+          <div class="b-label">${r}</div>
+          <div class="b-track"><div class="b-fill" style="width:${Math.round(reasonCounts[r]/rejected.length*100)}%; background:var(--red-soft);"></div></div>
+          <div class="b-val">${reasonCounts[r]} case${reasonCounts[r]>1?'s':''}</div>
+        </div>`).join('');
+      const tableRows = rejected.map(t=>`
+        <tr>
+          <td class="rt-id">${t.id}</td>
+          <td>${dirBadgeHtml(t)}</td>
+          <td class="rt-reason">${t.reason}</td>
+          <td class="rt-returned">↩ ${returnToBank(t)}</td>
+          <td class="mono">${fmtAmt(t.amount)}</td>
+        </tr>`).join('');
+      rbHolder.innerHTML = `
+        ${reasonRows}
+        <table class="rej-table">
+          <thead><tr><th>ID</th><th>Direction</th><th>Reason</th><th>Returned To</th><th>Amount</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      `;
+    }
+  }
+
+  function pieSvg(slices, total){
+    if(total===0) return `<div class="empty-state"><div class="glyph">○</div>No transactions yet.</div>`;
+    const r = 70, cx=90, cy=90;
+    let angle = -90;
+    let paths = '';
+    slices.forEach(s=>{
+      if(s.val<=0) return;
+      const frac = s.val/total;
+      const sweep = frac*360;
+      const x1 = cx + r*Math.cos(angle*Math.PI/180);
+      const y1 = cy + r*Math.sin(angle*Math.PI/180);
+      const end = angle+sweep;
+      const x2 = cx + r*Math.cos(end*Math.PI/180);
+      const y2 = cy + r*Math.sin(end*Math.PI/180);
+      const large = sweep>180?1:0;
+      paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${s.color}" stroke="var(--card)" stroke-width="2"/>`;
+      angle = end;
+    });
+    return `<svg width="180" height="180" viewBox="0 0 180 180">${paths}<circle cx="${cx}" cy="${cy}" r="34" fill="var(--card)"/></svg>`;
+  }
+
+  // ---------- SEARCH ----------
+  document.getElementById('search-btn').addEventListener('click', doSearch);
+  document.getElementById('search-input').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+  function doSearch(){
+    const q = document.getElementById('search-input').value.trim().toUpperCase();
+    const res = document.getElementById('search-result');
+    const t = transactions.find(x=>x.id===q);
+    if(!t){
+      res.innerHTML = `<div class="empty-state"><div class="glyph">?</div>No transaction found for "${q||'—'}".</div>`;
+      return;
+    }
+    const expected = t.rejected ? '—' : (t.currentStep>=4 ? 'Done' : (4-t.currentStep)*2+' minutes');
+    res.innerHTML = `
+      <div class="tx-card">
+        <div class="tx-card-top">
+          <div>
+            <div class="tx-id">${t.id}</div>
+            <div class="tx-banks"><span>${t.fromBank}</span><span class="arrow">→</span><span>${t.toBank}</span></div>
+            ${dirBadgeHtml(t)}
+          </div>
+          <div style="text-align:right;">
+            <div class="tx-amt">${fmtAmt(t.amount)}</div>
+            <div class="stamp ${statusClass(t)}" style="margin-top:8px;">${statusLabel(t)}</div>
+          </div>
+        </div>
+        <div style="margin-top:14px; font-size:13px; color:var(--ink-soft);">Expected Completion: <strong class="mono" style="color:var(--ink);">${expected}</strong></div>
+        ${returnNoteHtml(t)}
+        <div class="journey">
+          <div class="journey-track">${STAGES.map((s,i)=>{
+            let cls='';
+            if(t.rejected && i===t.currentStep) cls='rejected-node';
+            else if(i<t.currentStep) cls='done';
+            else if(i===t.currentStep) cls='current';
+            return `<div class="journey-node ${cls}" data-idx="${i}">${i<t.currentStep ? '✔' : (t.rejected && i===t.currentStep ? '✕' : STAGE_ICONS[i])}</div>`;
+          }).join('<div class="journey-seg"></div>')}</div>
+          <div class="journey-labels">${STAGES.map(s=>`<span>${s}</span>`).join('')}</div>
+        </div>
+      </div>
+    `;
+    res.querySelectorAll('.journey-node').forEach(node=>{
+      node.addEventListener('click', ()=> showStageInfo(STAGES[+node.dataset.idx]));
+    });
+  }
+
+  // init
+  seedData();
+  renderDashboard();
+})();
+</script>
+</body>
+</html>
